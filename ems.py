@@ -4,6 +4,7 @@
 # 2012-07-03
 
 from base import Base
+import asyncore
 import struct
 from time import localtime, strftime, time, sleep
 import threading
@@ -12,7 +13,7 @@ from convenience import Convenience
 from ctypes import *
 
 
-class EMS(Base):
+class EMS(Base, threading.Thread):
     """
     some messages of the ems service
         516:  Multiple Stocks Quotation
@@ -30,15 +31,22 @@ class EMS(Base):
         6078: Subscribe Capital Flows List
     """
 
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, frame):
         Base.__init__(self, ip, port)
+        threading.Thread.__init__(self)
         self.timer_bh = threading.Timer(60.0, self.test_6055_beatheart)
         self.pylcm = cdll.LoadLibrary('pylcm')
         self.pylcm.create_instance()
+        self.frame = frame
         self.stocks = {}  # all stocks
 
     def __del__(self):
         self.pylcm.free_instance()
+
+    def run(self):
+        self.test_login_ems('hz9999', 'wokao', -4)
+        self.test_6077_reg_columns_quote_list(1, 91001004, 9223372036854775807)
+        asyncore.loop()
 
     def test_login_ems(self, username, password, clienttype):
         """测试登录EMS"""
@@ -695,6 +703,7 @@ class EMS(Base):
                             #                                                 _52_week_high, _52_week_low)
                             j += 1
                             self.stocks[stockid] = [lastprice, _52_week_high, _52_week_low]
+                            self.frame.filldata((stockid, lastprice, _52_week_high, _52_week_low))
                         print out_buf_len, col_buf_len, snap, out_buf_len.value, self.stocks
                         # market, timeoflastsale, code, = struct.unpack('=BI7s', c_out_buf[4:16])
                         # print '----{0},{1},{2}'.format(market, timeoflastsale, code)
