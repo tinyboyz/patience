@@ -695,6 +695,7 @@ class EMS(Base, threading.Thread):
                         j = 1
                         if snap.value:
                             self.stocks.clear()
+                        listdata = []
                         for i in range(0, out_buf_len.value, 345):
                             stockid, = struct.unpack('=I', data_buf[i:i+4])
                             lastprice, = struct.unpack('=f', data_buf[i+20:i+24])
@@ -703,8 +704,9 @@ class EMS(Base, threading.Thread):
                             #                                                 _52_week_high, _52_week_low)
                             j += 1
                             self.stocks[stockid] = [lastprice, _52_week_high, _52_week_low]
-                            self.frame.filldata((stockid, lastprice, _52_week_high, _52_week_low))
-                        print out_buf_len, col_buf_len, snap, out_buf_len.value, self.stocks
+                            listdata.append((stockid, lastprice, _52_week_high, _52_week_low))
+                        self.frame.set_content(snap.value, listdata)
+                        # print out_buf_len, col_buf_len, snap, out_buf_len.value, self.stocks
                         # market, timeoflastsale, code, = struct.unpack('=BI7s', c_out_buf[4:16])
                         # print '----{0},{1},{2}'.format(market, timeoflastsale, code)
                         # f = open('e:\\scratch\\tmp_{0}_{1}.txt'.format(msgid, self.recvseq), 'wb')

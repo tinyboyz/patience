@@ -1,10 +1,6 @@
 import wx
 import sys
 
-packages = [('jessica alba', 'pomona', '1981'), ('sigourney weaver', 'new york', '1949'),
-    ('angelina jolie', 'los angeles', '1975'), ('natalie portman', 'jerusalem', '1981'),
-    ('rachel weiss', 'london', '1971'), ('scarlett johansson', 'new york', '1984' )]
-
 
 class PatFrame(wx.Frame):
 
@@ -39,9 +35,10 @@ class PatFrame(wx.Frame):
         panel = wx.Panel(self, -1)
 
         self.list = wx.ListCtrl(panel, -1, style=wx.LC_REPORT)
-        self.list.InsertColumn(0, 'name', width=140)
-        self.list.InsertColumn(1, 'place', width=130)
-        self.list.InsertColumn(2, 'year', wx.LIST_FORMAT_RIGHT, 90)
+        self.list.InsertColumn(0, 'Stock', width=140)
+        self.list.InsertColumn(1, 'Last Price', width=130)
+        self.list.InsertColumn(2, '52week High', wx.LIST_FORMAT_RIGHT, 90)
+        self.list.InsertColumn(3, '52week Low', wx.LIST_FORMAT_RIGHT, 90)
 
         hbox.Add(self.list, 1, wx.EXPAND | wx.ALL)
         panel.SetSizer(hbox)
@@ -57,11 +54,13 @@ class PatFrame(wx.Frame):
     def filllist(self, init, data):
         if init:
             for i in data:
-                index = self.list.InsertStringItem(sys.maxint, i[0])
-                self.list.SetStringItem(index, 1, i[1])
-                self.list.SetStringItem(index, 2, i[2])
+                index = self.list.InsertStringItem(sys.maxint, str(i[0]))
+                self.list.SetStringItem(index, 1, '{:.2f}'.format(i[1]))
+                self.list.SetStringItem(index, 2, '{:.2f}'.format(i[2]))
+                self.list.SetStringItem(index, 3, '{:.2f}'.format(i[3]))
                 self.indexmap[i[0]] = index
         else:
             for i in data:
-                self.list.SetStringItem(self.indexmap[i[0]], 1, i[1])
-                self.list.SetStringItem(self.indexmap[i[0]], 2, i[2])
+                self.list.SetStringItem(self.indexmap[i[0]], 1, '{:.2f}'.format(i[1]))
+                self.list.SetStringItem(self.indexmap[i[0]], 2, '{:.2f}'.format(i[2]))
+                self.list.SetStringItem(self.indexmap[i[0]], 3, '{:.2f}'.format(i[3]))
