@@ -31,13 +31,14 @@ class EMS(Base, threading.Thread):
         6078: Subscribe Capital Flows List
     """
 
-    def __init__(self, ip, port, frame):
+    def __init__(self, ip, port, quotelist):
         Base.__init__(self, ip, port)
         threading.Thread.__init__(self)
-        self.timer_bh = threading.Timer(60.0, self.test_6055_beatheart)
         self.pylcm = cdll.LoadLibrary('pylcm')
         self.pylcm.create_instance()
-        self.frame = frame
+        self.quotelist = quotelist
+        self.thread_heartbeat = None
+        self.running = True
         self.stocks = {}  # all stocks
 
     def __del__(self):
@@ -46,7 +47,32 @@ class EMS(Base, threading.Thread):
     def run(self):
         self.test_login_ems('hz9999', 'wokao', -4)
         self.test_6077_reg_columns_quote_list(1, 91001004, 9223372036854775807)
+        self.thread_heartbeat = threading.Thread(target=self.make_hearbeat)
+        self.thread_heartbeat.start()
         asyncore.loop()
+
+    def make_hearbeat(self):
+        last_heartbeat = time()
+        while self.running:
+            now = time()
+            if now - last_heartbeat > 60:
+                last_heartbeat = now
+                self.test_6055_beatheart()
+            sleep(1)
+
+    def stop(self):
+        print 'stop the heartbeat thread...',
+        self.running = False
+        print '[ok]'
+        print 'close socket...',
+        self.close()
+        print '[ok]'
+        print 'join the heartbeat thread...',
+        self.thread_heartbeat.join()
+        print '[ok]'
+        print 'join the ems thread...',
+        self.join()
+        print '[ok]'
 
     def test_login_ems(self, username, password, clienttype):
         """测试登录EMS"""
@@ -520,8 +546,6 @@ class EMS(Base, threading.Thread):
     def test_6055_beatheart(self):
         self.sendbuf += struct.pack("=ihii", 0, 6055, 0, 0)
         self.make_a_tag(self.sendaction, 6055, 14)
-        self.timer_bh = threading.Timer(60.0, self.test_6055_beatheart)
-        self.timer_bh.start()
 
     def test_6062_sub_single_stock_trendline(self, market, code):
         self.sendbuf += struct.pack("=ihiiIIB7sB", 17, 6062, 0, 0, 0, 0, market, code, 2)
@@ -545,11 +569,9 @@ class EMS(Base, threading.Thread):
 
     def handle_connect(self):
         Base.handle_connect(self)
-        self.timer_bh.start()
 
     def handle_close(self):
         Base.handle_close(self)
-        self.timer_bh.cancel()
 
     def handle_read(self):
         """
@@ -673,25 +695,23 @@ class EMS(Base, threading.Thread):
                                                                          'compresslen:{2}]'.format(incid, pshstat,
                                                                                                    compresslen))
 
-                        c_out_buf = create_string_buffer(10*1024*1024)
-                        # c_col_buf = create_string_buffer(10*1024*1024)
                         c_in_buf = c_char_p(body[9:9 + compresslen])
                         out_buf_len = c_int()
                         col_buf_len = c_int()
                         c_out_buf = c_char_p()
                         c_col_buf = c_char_p()
                         snap = c_bool()
-                        # c_out_buf = c_void_p()
                         self.pylcm.uncompress_qtlistrecjg(c_in_buf, compresslen, byref(c_out_buf), byref(out_buf_len),
                                                           byref(c_col_buf), byref(col_buf_len), byref(snap))
 
+                        strcode = create_string_buffer(7)
                         data_buf = create_string_buffer(out_buf_len.value)
                         col_buf = create_string_buffer(col_buf_len.value)
                         memmove(data_buf, c_out_buf, out_buf_len.value)
                         memmove(col_buf, c_col_buf, col_buf_len.value)
-                        for i in range(0, col_buf_len.value, 2):
-                            col, = struct.unpack('=H', col_buf[i:i+2])
-                            print col,
+                        # for i in range(0, col_buf_len.value, 2):
+                        #     col, = struct.unpack('=H', col_buf[i:i+2])
+                        #     print col,
                         j = 1
                         if snap.value:
                             self.stocks.clear()
@@ -703,9 +723,13 @@ class EMS(Base, threading.Thread):
                             # print '[{0}]{1},{2:.2f},{3:.2f},{4:.2f}'.format(j, stockid, lastprice,
                             #                                                 _52_week_high, _52_week_low)
                             j += 1
-                            self.stocks[stockid] = [lastprice, _52_week_high, _52_week_low]
-                            listdata.append((stockid, lastprice, _52_week_high, _52_week_low))
-                        self.frame.set_content(snap.value, listdata)
+                            code_buf = c_char_p()
+                            code_len = c_int()
+                            market = c_char()
+                            self.pylcm.int2marketcode(stockid, strcode, byref(market))
+                            self.stocks[stockid] = [market.value, strcode.value, lastprice, _52_week_high, _52_week_low]
+                            listdata.append((stockid, market.value, strcode.value, lastprice, _52_week_high, _52_week_low))
+                        self.quotelist.update(snap.value, listdata)
                         # print out_buf_len, col_buf_len, snap, out_buf_len.value, self.stocks
                         # market, timeoflastsale, code, = struct.unpack('=BI7s', c_out_buf[4:16])
                         # print '----{0},{1},{2}'.format(market, timeoflastsale, code)

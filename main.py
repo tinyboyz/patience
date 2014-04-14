@@ -1,9 +1,10 @@
-from quote import Quote
 import ConfigParser
-from frame import PatFrame
-from ems import EMS
 import wx
-import sys
+from controller import Controller
+
+from gui.mainframe import MainFrame
+from service.ems import EMS
+
 
 class Example(wx.Frame):
 
@@ -68,6 +69,18 @@ class Config():
             self.stocks_list = stocks.split(',')
 
 
+class MyApp(wx.App):
+
+    def OnInit(self):
+        self.frame = MainFrame("Patience", (-1, -1), (-1, -1))
+        self.frame.Maximize()
+        self.frame.Show()
+        self.SetTopWindow(self.frame)
+        emspaid = EMS('202.104.236.15', 1865, self.frame)
+        emspaid.start()
+        return True
+
+
 def main():
     config = Config()
     print config.stocks_list
@@ -75,22 +88,9 @@ def main():
     # quote.start()
     # quote.join()
 
-    app = MyApp(False)
+    app = wx.App(False)
+    controller = Controller(app)
     app.MainLoop()
-
-
-
-
-class MyApp(wx.App):
-
-    def OnInit(self):
-        self.frame = PatFrame("Patience", (-1, -1), (-1, -1))
-        self.frame.Maximize()
-        self.frame.Show()
-        self.SetTopWindow(self.frame)
-        emspaid = EMS('202.104.236.192', 1865, self.frame)
-        emspaid.start()
-        return True
 
 if __name__ == '__main__':
     main()

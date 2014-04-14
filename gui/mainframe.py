@@ -2,10 +2,10 @@ import wx
 import sys
 
 
-class PatFrame(wx.Frame):
+class MainFrame(wx.Frame):
 
-    def __init__(self, title, pos, size):
-        wx.Frame.__init__(self, None, -1, title, pos, size)
+    def __init__(self, parent):
+        wx.Frame.__init__(self, parent, title='Main Frame')
         # create menus
         menu_sys = wx.Menu()
         memu_about = wx.Menu()
@@ -31,17 +31,6 @@ class PatFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_quite, id=2)
         self.Bind(wx.EVT_MENU, self.on_about, id=3)
 
-        hbox = wx.BoxSizer(wx.HORIZONTAL)
-        panel = wx.Panel(self, -1)
-
-        self.list = wx.ListCtrl(panel, -1, style=wx.LC_REPORT)
-        self.list.InsertColumn(0, 'Stock', width=140)
-        self.list.InsertColumn(1, 'Last Price', width=130)
-        self.list.InsertColumn(2, '52week High', wx.LIST_FORMAT_RIGHT, 90)
-        self.list.InsertColumn(3, '52week Low', wx.LIST_FORMAT_RIGHT, 90)
-
-        hbox.Add(self.list, 1, wx.EXPAND | wx.ALL)
-        panel.SetSizer(hbox)
         self.Centre()
         self.indexmap = {}
 
